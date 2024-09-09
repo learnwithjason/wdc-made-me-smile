@@ -8,7 +8,7 @@ import {
 	useMutation,
 	useQuery,
 } from 'convex/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const meta: MetaFunction = () => {
 	return [
@@ -20,7 +20,7 @@ export const meta: MetaFunction = () => {
 	];
 };
 
-const AddMemoryForm = () => {
+const AddMemoryForm = ({ updateState }) => {
 	const createMemory = useMutation(api.memories.set);
 
 	useEffect(() => {
@@ -80,6 +80,8 @@ const AddMemoryForm = () => {
 						imageData,
 						memory,
 					});
+
+					updateState(false);
 				}}
 			>
 				<input type="hidden" name="image" id="image" />
@@ -96,9 +98,8 @@ const AddMemoryForm = () => {
 };
 
 export default function Index() {
+	const [open, setOpen] = useState(false);
 	const memories = useQuery(api.memories.getByUser);
-
-	console.log({ memories });
 
 	return (
 		<>
@@ -125,7 +126,11 @@ export default function Index() {
 				</Unauthenticated>
 
 				<Authenticated>
-					<AddMemoryForm />
+					{open ? (
+						<AddMemoryForm updateState={setOpen} />
+					) : (
+						<button onClick={() => setOpen(true)}>Capture a Memory</button>
+					)}
 
 					<section>
 						{memories?.map((data) => {
