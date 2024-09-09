@@ -1,10 +1,13 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { Upload } from '@aws-sdk/lib-storage';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { SignInButton, UserButton } from '@clerk/remix';
-import type { ActionFunctionArgs, MetaFunction } from '@remix-run/node';
-import { Form, json, Link, useActionData } from '@remix-run/react';
-import { Authenticated, Unauthenticated } from 'convex/react';
+import type { MetaFunction } from '@remix-run/node';
+import { Link } from '@remix-run/react';
+import { api } from 'convex/_generated/api';
+import {
+	Authenticated,
+	Unauthenticated,
+	useMutation,
+	useQuery,
+} from 'convex/react';
 import { useEffect } from 'react';
 
 export const meta: MetaFunction = () => {
@@ -17,61 +20,9 @@ export const meta: MetaFunction = () => {
 	];
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-	const S3 = new S3Client({
-		region: 'auto',
-		endpoint: 'https://fly.storage.tigris.dev',
-		credentials: {
-			accessKeyId: process.env['AWS_ACCESS_KEY_ID']!,
-			secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY']!,
-		},
-	});
-
-	console.log({
-		accessKeyId: process.env['AWS_ACCESS_KEY_ID']!,
-		secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY']!,
-	});
-
-	const formData = await request.formData();
-	const image = formData.get('image');
-	const memory = formData.get('memory');
-
-	const base64Data = image.split(',').at(1);
-	const buf = Buffer.from(base64Data, 'base64');
-
-	const upload = new Upload({
-		params: {
-			Bucket: 'wdc-made-me-smile',
-			Key: 'test',
-			Body: buf,
-		},
-		client: S3,
-		queueSize: 3,
-	});
-
-	upload.on('httpUploadProgress', (progress) => {
-		console.log(progress);
-	});
-
-	upload.on('httpError', (error) => {
-		console.error(error);
-	});
-
-	await upload.done();
-
-	const imageUrl = await getSignedUrl(
-		S3,
-		new GetObjectCommand({
-			Bucket: 'wdc-made-me-smile',
-			Key: 'test',
-		}),
-		{ expiresIn: 3600 },
-	);
-
-	return json({ imageUrl });
-};
-
 const AddMemoryForm = () => {
+	const createMemory = useMutation(api.memories.set);
+
 	useEffect(() => {
 		const imageInput = document.getElementById('image') as HTMLInputElement;
 		const player = document.getElementById('player') as HTMLVideoElement;
@@ -89,7 +40,10 @@ const AddMemoryForm = () => {
 			// Draw the video frame to the canvas.
 			context.drawImage(player, 0, 0, canvas.width, canvas.height);
 			const img = canvas.toDataURL();
-			console.log({ imageInput, img });
+
+			canvas.classList.remove('hidden');
+			player.classList.add('hidden');
+
 			imageInput.value = img;
 		});
 
@@ -101,13 +55,33 @@ const AddMemoryForm = () => {
 
 	return (
 		<>
-			{/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-			<video id="player" controls autoPlay></video>
+			<div className="selfie">
+				{/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+				<video id="player" controls autoPlay width="600" height="400"></video>
+				<canvas
+					id="canvas"
+					className="hidden"
+					width="600"
+					height="400"
+				></canvas>
 
-			<button id="capture">Capture</button>
-			<canvas id="canvas" width="320" height="240"></canvas>
+				<button id="capture">Capture</button>
+			</div>
 
-			<Form method="POST" reloadDocument>
+			<form
+				onSubmit={(event) => {
+					event.preventDefault();
+
+					const data = new FormData(event.target as HTMLFormElement);
+					const imageData = data.get('image') as string;
+					const memory = data.get('memory') as string;
+
+					createMemory({
+						imageData,
+						memory,
+					});
+				}}
+			>
 				<input type="hidden" name="image" id="image" />
 
 				<label htmlFor="memory">
@@ -116,13 +90,15 @@ const AddMemoryForm = () => {
 				</label>
 
 				<button type="submit">Save</button>
-			</Form>
+			</form>
 		</>
 	);
 };
 
 export default function Index() {
-	const actionData = useActionData<typeof action>();
+	const memories = useQuery(api.memories.getByUser);
+
+	console.log({ memories });
 
 	return (
 		<>
@@ -142,10 +118,6 @@ export default function Index() {
 			<main>
 				<h1>Made Me Smile</h1>
 
-				{actionData?.imageUrl ? (
-					<img src={actionData.imageUrl} alt="test" />
-				) : null}
-
 				<Unauthenticated>
 					<p>Log in to continue</p>
 
@@ -154,6 +126,17 @@ export default function Index() {
 
 				<Authenticated>
 					<AddMemoryForm />
+
+					<section>
+						{memories?.map((data) => {
+							return (
+								<div className="memory" key={data._id}>
+									<img src={data.imageUrl} alt="user uploaded" />
+									<p>{data.memory}</p>
+								</div>
+							);
+						})}
+					</section>
 				</Authenticated>
 			</main>
 		</>

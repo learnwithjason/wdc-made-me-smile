@@ -2,3 +2,54 @@
 	font-family: system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
 		'Segoe UI Symbol';
 }
+
+.hidden {
+	display: none;
+}
+
+canvas,
+video,
+form {
+	display: block;
+	margin-inline: auto;
+	inline-size: 600px;
+}
+
+canvas,
+video {
+	object-fit: fill;
+}
+
+label,
+input,
+textarea,
+button {
+	display: block;
+	font-family: system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+		'Segoe UI Symbol';
+	font-size: 16px;
+}
+
+textarea {
+	block-size: 100px;
+	inline-size: 100%;
+}
+
+button {
+	font-size: 1.25rem;
+	margin: 1rem auto;
+}
+
+section {
+	display: block;
+	inline-size: 600px;
+	margin: 3rem auto;
+
+	.memory {
+		margin-block-end: 2rem;
+	}
+
+	img {
+		inline-size: 100%;
+	}
+}
